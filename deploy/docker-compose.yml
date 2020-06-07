@@ -1,0 +1,74 @@
+# meant to be use as docker swarm
+# need to specify the image version tag by using env variable ORACLE_IMAGE_TAG
+version: '3.5'
+services:
+  oracle:
+    image: docker.pkg.github.com/cryptogarageinc/p2pderivatives-oracle/oracle:${ORACLE_IMAGE_TAG:?}
+    command: [ "-config", "/config", "-appname", "p2pdoracle", "-e", "default", "-migrate" ]
+    labels:
+      image.version: ${ORACLE_IMAGE_TAG}
+    deploy:
+      restart_policy:
+        condition: on-failure
+    environment:
+      # database
+      P2PDORACLE_DATABASE_DBUSER: postgres
+      P2PDORACLE_DATABASE_DBPASSWORD: 1234
+      P2PDORACLE_DATABASE_DBNAME: db
+      P2PDORACLE_DATABASE_HOST: db
+      P2PDORACLE_DATABASE_PORT: 5432
+      # datafeed
+      P2PDORACLE_DATAFEED_CRYPTOCOMPARE_APIKEY: 6c8c899bacde7f54b5e312a862d162c36042669dafdb4c75b87feacc3c70c9c4
+    depends_on:
+      - db
+    ports:
+      - 443:8080
+    configs:
+      - source: oracle
+        target: /config/default.yml
+    secrets:
+      - oracle_key
+      - oracle_key_pass
+
+  db:
+    image: "postgres:12.2"
+    command: |
+      -c log_statement=all
+      -c ssl=on
+      -c ssl_cert_file=/run/secrets/oracle_db_cert
+      -c ssl_key_file=/run/secrets/oracle_db_key
+    deploy:
+      restart_policy:
+        condition: on-failure
+    ports:
+      - 5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: db
+    secrets:
+      - oracle_db_cert
+      - source: oracle_db_key
+        target: oracle_db_key
+        uid: '999' # postgres uid guid
+        gid: '999'
+        mode: 0600
+    volumes:
+      - db_data:/var/lib/postgresql/data/ # persist data even if container shuts down
+
+volumes:
+  db_data:
+
+secrets:
+  oracle_key:
+    external: true
+  oracle_key_pass:
+    external: true
+  oracle_db_cert:
+    external: true
+  oracle_db_key:
+    external: true
+
+configs:
+  oracle:
+    external: true
