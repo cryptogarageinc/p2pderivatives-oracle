@@ -21,7 +21,7 @@ workflows:
     jobs:
       - packaging:
           <<: *tag_only
-          context: github-packages-docker-credentials
+          context: p2pderivatives-ci
       - hold:
           <<: *tag_only
           type: approval
@@ -153,8 +153,8 @@ jobs:
 
   packaging:
     environment:
-      DOCKER_HUB_URL: docker.pkg.github.com
-      IMAGE_REPOSITORY: p2pderivatives/p2pderivatives-oracle
+      DOCKER_HUB_URL: ghcr.io
+      IMAGE_OWNER: p2pderivatives
       IMAGE_NAME: oracle
     docker:
       - image: cimg/base:stable
@@ -165,21 +165,21 @@ jobs:
       - run:
           name: Login to docker repository
           command: |
-            echo "$DOCKER_HUB_PASS" | docker login ${DOCKER_HUB_URL} -u "$DOCKER_HUB_USER" --password-stdin
+            echo "$PACKAGE_DEPLOY" | docker login ${DOCKER_HUB_URL} -u "$PACKAGE_DEPLOY_USER" --password-stdin
       - run:
           name: Build docker image
           command: |
-            docker build -t ${DOCKER_HUB_URL}/${IMAGE_REPOSITORY}/${IMAGE_NAME}:${CIRCLE_TAG} .
+            docker build -t ${DOCKER_HUB_URL}/${IMAGE_OWNER}/${IMAGE_NAME}:${CIRCLE_TAG} .
       - run:
           name: Push image to repository
           command: |
-            docker push ${DOCKER_HUB_URL}/${IMAGE_REPOSITORY}/${IMAGE_NAME}:${CIRCLE_TAG}
+            docker push ${DOCKER_HUB_URL}/${IMAGE_OWNER}/${IMAGE_NAME}:${CIRCLE_TAG}
 
   deploy:
     docker:
       - image: cimg/base:stable
     environment:
-      DOCKER_HUB_URL: docker.pkg.github.com
+      DOCKER_HUB_URL: ghcr.io
       CD_STACK_NAME: oracle-staging
       CD_SERVICE_ADDRESS: https://oracle.p2pderivatives.io/asset
     steps:
